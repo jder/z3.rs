@@ -10,24 +10,23 @@ impl<'ctx> DatatypeBuilder<'ctx> {
         }
     }
 
-    pub fn variant(mut self, name: &str, fields: &[(&str, &Sort)]) -> Self {
+    pub fn variant(mut self, name: &str, fields: &[(&str, Option<&Sort>)]) -> Self {
         let recognizer_name_sym = Symbol::String(format!("is-{}", name)).as_z3_symbol(self.ctx);
         let name_sym = Symbol::String(name.to_string()).as_z3_symbol(self.ctx);
 
-        assert!(fields
-            .iter()
-            .all(|(name, sort)| sort.ctx.z3_ctx == self.ctx.z3_ctx));
+        assert!(fields.iter().all(|(name, sort)| sort
+            .map(|sort| sort.ctx.z3_ctx == self.ctx.z3_ctx)
+            .unwrap_or(true)));
 
         let mut field_names: Vec<Z3_symbol> = Vec::with_capacity(fields.len());
         let mut field_sorts = Vec::with_capacity(fields.len());
 
         for (name, sort) in fields {
             field_names.push(Symbol::String(name.to_string()).as_z3_symbol(self.ctx));
-            field_sorts.push(sort.z3_sort);
+            field_sorts.push(sort.map(|sort| sort.z3_sort).unwrap_or(null_mut()));
         }
 
-        // This is unused.
-        // Z3 expects sort_refs in Z3_mk_constructor to be valid, so create it here.
+        // We only permit use of our own datatype in a recursive sort, so these are all 0.
         let mut sort_refs = Vec::new();
         sort_refs.resize(fields.len(), 0);
 
